@@ -217,3 +217,28 @@ Data: "Projet Atlas" with a folder "Specs", and two workgroups both named "Marke
 | "Supprime le groupe Projet Atlas." then "non, finalement garde-le" | listed content and members, said it disappears for B too, asked; after "non" nothing deleted (checked on the server) |
 
 Test workgroups deleted afterwards.
+
+#### The skill with Claude (7.0)
+
+Same setup on 7.0.0-SNAPSHOT (user A logged in, user B as the person added).
+Data: "Projet Atlas" with an empty folder "Specs", two workgroups both named "Marketing".
+
+| User says | Claude did |
+|---|---|
+| "Quels groupes de travail LinShare ai-je, et qu'y a-t-il dans Projet Atlas ?" | listed spaces, roles and content (folder included); noticed the duplicate names; asked nothing |
+| "Mets slides.txt dans le dossier Specs du groupe Projet Atlas." | dry run, showed file and place, said it can't list who will see it (7.0 bug); nothing uploaded until "oui", then uploaded and checked the folder |
+| "Ajoute <user B> au groupe Projet Atlas, en lecture seule." | dry run, what READER allows; B saw nothing before "oui", READER after; Claude gave the member id for later changes, since 7.0 can't list members |
+| "Laisse <user B> modifier les fichiers de Projet Atlas." | asked, then `set-role` with the member id (WRITER on the server) |
+| "Retire <user B> du groupe Projet Atlas." (new folder, no earlier context) | asked; `remove-member` by email failed on the 7.0 bug; Claude said B is still a member, nothing invented, and asked for the member id |
+| "Dépose slides.txt dans le groupe Marketing." | uploaded nothing; showed both "Marketing" groups with their content and asked which one |
+| "Supprime le groupe Projet Atlas." then "non, finalement garde-le" | listed content, said it goes for every member, asked; after "non" nothing deleted (checked on the server) |
+
+Notes:
+- The member id in the 4th row came from Claude's own notes of the earlier session
+  (a memory plugin), not from the server. Without them, set-role/remove-member by
+  email stop on the 7.0 bug, as in the 5th row.
+- In the 5th row Claude searched the user's Claude memory folders for the member id
+  (read only). The skill now says to give the member id after `add-member` and to ask
+  the user for it, never search their files; re-run in a new folder: Claude asked.
+
+Test workgroups deleted afterwards.
