@@ -99,3 +99,26 @@ def test_closed_output_pipe_is_not_a_traceback(isolated_config):
     stderr = proc.stderr.read().decode()
     proc.wait(timeout=30)
     assert stderr == ""
+
+
+def test_human_output_neutralises_terminal_control_characters():
+    import click
+
+    from cli_anything.linshare import linshare_cli as cli_mod
+    from cli_anything.linshare.core.errors import ServerError
+
+    @click.command()
+    def fake():
+        cli_mod.output([{"name": "a\x1b]0;pwned\x07b\x9b2J.pdf", "tags": ["x\x1b[2Jy"], "nested": {"k": "\x1b[31mred"}}])
+
+    out = CliRunner().invoke(fake).output
+    assert "\x1b" not in out and "\x07" not in out and "\x9b" not in out
+    assert "a?]0;pwned?b?2J.pdf" in out
+
+    @click.command()
+    @cli_mod.handle_error
+    def failing():
+        raise ServerError("bad name \x1b[2J here")
+
+    res = CliRunner().invoke(failing)
+    assert "\x1b" not in res.output and "bad name ?[2J here" in res.output

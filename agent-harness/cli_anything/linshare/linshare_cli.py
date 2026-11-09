@@ -11,6 +11,7 @@ from __future__ import annotations
 import functools
 import json
 import os
+import re
 import shlex
 import sys
 from datetime import date
@@ -27,13 +28,26 @@ _state = {"json": False, "repl": False}
 
 # -- output -----------------------------------------------------------------
 
+# Terminal control characters (ESC, C0, DEL, C1). Server text such as a file name
+# chosen by a sender must not be able to rewrite the user's terminal.
+_CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+_CONTROL_EXCEPT_NEWLINE = re.compile(r"[\x00-\x09\x0b-\x1f\x7f-\x9f]")
+
+
+def _safe(value) -> str:
+    return _CONTROL.sub("?", str(value))
+
+
+def _safe_message(message: str) -> str:
+    return _CONTROL_EXCEPT_NEWLINE.sub("?", message)
+
 
 def output(data, message: str = "") -> None:
     if _state["json"]:
         click.echo(json.dumps(data, indent=2, default=str, ensure_ascii=False))
         return
     if message:
-        click.echo(message)
+        click.echo(_safe_message(message))
     if isinstance(data, list):
         if not data:
             click.echo("(none)")
@@ -47,24 +61,24 @@ def output(data, message: str = "") -> None:
 def _print_item(item, indent: int = 0) -> None:
     pad = "  " * indent
     if not isinstance(item, dict):
-        click.echo(f"{pad}{item}")
+        click.echo(f"{pad}{_safe(item)}")
         return
     for key, value in item.items():
         if value is None or value == [] or value == {}:
             continue
         if isinstance(value, dict):
-            click.echo(f"{pad}{key}:")
+            click.echo(f"{pad}{_safe(key)}:")
             _print_item(value, indent + 1)
         elif isinstance(value, list):
-            click.echo(f"{pad}{key}:")
+            click.echo(f"{pad}{_safe(key)}:")
             for sub in value:
                 if isinstance(sub, dict):
                     click.echo(f"{pad}  -")
                     _print_item(sub, indent + 2)
                 else:
-                    click.echo(f"{pad}  - {sub}")
+                    click.echo(f"{pad}  - {_safe(sub)}")
         else:
-            click.echo(f"{pad}{key}: {value}")
+            click.echo(f"{pad}{_safe(key)}: {_safe(value)}")
 
 
 def handle_error(func):
@@ -86,7 +100,7 @@ def _report(err: LinShareError) -> None:
     if _state["json"]:
         click.echo(json.dumps(err.to_dict(), indent=2, ensure_ascii=False))
     else:
-        click.echo(f"Error: {err.message}", err=True)
+        click.echo(f"Error: {_safe_message(err.message)}", err=True)
     if _state["repl"]:
         return
     sys.exit(err.exit_code)
